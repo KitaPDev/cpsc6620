@@ -423,7 +423,44 @@ public class Menu {
 		 * as complete
 		 * 
 		 */
+		ArrayList<Order> incompleteOrders = new ArrayList<Order>();
+		for (Order o : DBNinja.getOrderList()) {
+			if (o.getIsComplete() == 0) {
+				incompleteOrders.add(o);
+			}
+		}
 
+		if (incompleteOrders.size() == 0) {
+			System.out.println("There are no open orders currently... returning to menu...");
+			return;
+		}
+
+		while (true) {
+			BufferedReader reader = new BufferedReader(new InputStreamReader(System.in));
+
+			try {
+				for (Order o : incompleteOrders) {
+					System.out.println(o.toSimplePrint());
+				}
+				System.out.println(
+						"Which order would you like to mark as complete? Enter the OrderID or -1 to return to menu:");
+
+				int orderID = Integer.parseInt(reader.readLine());
+				if (orderID == -1) {
+					break;
+				}
+
+				for (Order o : incompleteOrders) {
+					if (o.getOrderID() == orderID) {
+						DBNinja.CompleteOrder(o);
+						return;
+					}
+				}
+
+			} catch (NumberFormatException e) {
+				System.out.println("Invalid input: " + e.getMessage());
+			}
+		}
 	}
 
 	// See the list of inventory and it's current level

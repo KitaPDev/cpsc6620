@@ -314,6 +314,9 @@ public final class DBNinja {
 		 * add code to mark an order as complete in the DB. You may have a boolean field
 		 * for this, or maybe a completed time timestamp. However you have it.
 		 */
+		String sql = "UPDATE customer_order SET CustOrderIsComplete = True WHERE CustOrderID = " + o.getOrderID() + ";";
+		Statement stmt = conn.createStatement();
+		stmt.executeUpdate(sql);
 
 		closeConnection();
 	}
