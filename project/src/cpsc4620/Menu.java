@@ -132,6 +132,131 @@ public class Menu {
 		 * 
 		 * return to menu
 		 */
+		String input = "";
+		while (input.length() == 0) {
+			System.out.println("Is this order for an existing customer? Answer y/n:");
+			input = reader.readLine();
+			if (!(input.equals("y") || input.equals("n"))) {
+				input = "";
+			}
+		}
+
+		if (input.equals("n")) {
+			EnterCustomer();
+		}
+
+		System.out.println("Here's a list of current customers:");
+		ArrayList<Customer> customers = DBNinja.getCustomerList();
+		for (Customer cust : customers) {
+			System.out.println(cust.toString());
+		}
+
+		int custID = -1;
+		while (custID == -1) {
+			System.out.println("Which customer is this order for? Enter ID number:");
+			int tmp = -1;
+			try {
+				tmp = Integer.parseInt(reader.readLine());
+			} catch (NumberFormatException e) {
+				System.out.println("Invalid input: " + e.getMessage());
+				continue;
+			}
+
+			for (Customer c : customers) {
+				if (c.getCustID() == tmp) {
+					custID = tmp;
+					break;
+				}
+			}
+		}
+
+		String orderType = "";
+		while (orderType.length() == 0) {
+			System.out.println("Is this order for:");
+			System.out.println("1.) Dine-in");
+			System.out.println("2.) Pick-up");
+			System.out.println("3.) Delivery");
+			System.out.println("Enter the number of your choice:");
+
+			int tmp = -1;
+			try {
+				tmp = Integer.parseInt(reader.readLine());
+			} catch (NumberFormatException e) {
+				System.out.println("Invalid input: " + e.getMessage());
+			}
+
+			switch (tmp) {
+				case 1:
+					orderType = "Dine-in";
+					break;
+				case 2:
+					orderType = "Pick-up";
+					break;
+				case 3:
+					orderType = "Delivery";
+					break;
+			}
+		}
+
+		Order order = new Order(0, custID, orderType, null, 0, 0, 0);
+		order.setOrderID(DBNinja.addOrder(order));
+
+		while (true) {
+			DBNinja.addPizza(buildPizza(order.getOrderID()));
+
+			System.out.println(
+					"Enter -1 to stop adding pizzas... Enter anything else to continue adding more pizzas to the order.");
+			if (reader.readLine().equals("-1")) {
+				break;
+			}
+		}
+
+		ArrayList<Discount> discounts = new ArrayList<Discount>();
+		while (true) {
+			System.out.println("Do you want to add discounts to this order? Enter y/n:");
+			input = reader.readLine();
+			if (input.equals("n")) {
+				break;
+			} else if (!input.equals("y")) {
+				continue;
+			}
+
+			System.out.println("Getting discount list...");
+			if (discounts.size() == 0) {
+				discounts = DBNinja.getDiscountList();
+			}
+
+			while (true) {
+				for (Discount d : discounts) {
+					System.out.println(d.toString());
+				}
+				System.out.println(
+						"Which Order Discount do you want to add? Enter the DiscountID. Enter -1 to stop adding Discounts:");
+
+				try {
+					int discountID = Integer.parseInt(reader.readLine());
+					if (discountID == -1) {
+						break;
+					}
+
+					for (Discount d : discounts) {
+						if (d.getDiscountID() == discountID) {
+							order.addDiscount(d);
+							;
+							break;
+						}
+					}
+
+				} catch (NumberFormatException e) {
+					System.out.println("Invalid input: " + e.getMessage());
+					continue;
+				}
+			}
+		}
+
+		for (Discount d : order.getDiscountList()) {
+			DBNinja.useOrderDiscount(order, d);
+		}
 
 		System.out.println("Finished adding order...Returning to menu...");
 	}
@@ -391,9 +516,181 @@ public class Menu {
 		 * Once the discounts are added, we can return the pizza
 		 */
 		BufferedReader reader = new BufferedReader(new InputStreamReader(System.in));
-		Pizza ret = null;
+		Pizza pizza = new Pizza(0, null, null, 0, null, null, 0, 0);
 
-		return ret;
+		String size = "";
+		while (size.length() == 0) {
+			System.out.println("Let's build a pizza!");
+			System.out.println("What size is this pizza?");
+			System.out.println("1.) Small");
+			System.out.println("2.) Medium");
+			System.out.println("3.) Large");
+			System.out.println("4.) X-Large");
+			System.out.println("Enter the corresponding number:");
+
+			int tmp = -1;
+			try {
+				tmp = Integer.parseInt(reader.readLine());
+			} catch (NumberFormatException e) {
+				System.out.println("Invalid input: " + e.getMessage());
+				continue;
+			}
+
+			switch (tmp) {
+				case 1:
+					size = "small";
+					break;
+				case 2:
+					size = "medium";
+					break;
+				case 3:
+					size = "large";
+					break;
+				case 4:
+					size = "x-large";
+					break;
+			}
+		}
+
+		String crust = "";
+		while (crust.length() == 0) {
+			System.out.println("What crust for this pizza?");
+			System.out.println("1.) Thin");
+			System.out.println("2.) Original");
+			System.out.println("3.) Pan");
+			System.out.println("4.) Gluten-Free");
+			System.out.println("Enter the corresponding number:");
+
+			int tmp = -1;
+			try {
+				tmp = Integer.parseInt(reader.readLine());
+			} catch (NumberFormatException e) {
+				System.out.println("Invalid input: " + e.getMessage());
+				continue;
+			}
+
+			switch (tmp) {
+				case 1:
+					crust = "Thin";
+					break;
+				case 2:
+					crust = "Original";
+					break;
+				case 3:
+					crust = "Pan";
+					break;
+				case 4:
+					crust = "Gluten-Free";
+					break;
+			}
+		}
+
+		ArrayList<Topping> toppings = DBNinja.getInventory();
+		while (true) {
+			System.out.println("ID\tName\t\t\tCurINVT");
+			for (Topping t : toppings) {
+				String line = t.getTopID() + "\t" + t.getTopName() + "\t";
+				if (t.getTopName().length() < 15) {
+					line += "\t";
+				}
+				if (t.getTopName().length() < 8) {
+					line += "\t";
+				}
+				line += t.getCurINVT();
+				System.out.println(line);
+			}
+			System.out.println("Which topping do you want to add? Enter the TopID. Enter -1 to stop adding toppings:");
+
+			try {
+				int tmp = Integer.parseInt(reader.readLine());
+
+				if (tmp == -1) {
+					break;
+				}
+
+				for (Topping t : toppings) {
+					if (t.getTopID() == tmp) {
+
+						System.out.println("Do you want to add extra topping? Enter y/n:");
+						if (reader.readLine().equals("y")) {
+							pizza.addToppings(t, true);
+						} else {
+							pizza.addToppings(t, false);
+						}
+
+						break;
+					}
+				}
+
+			} catch (NumberFormatException e) {
+				System.out.println("Invalid input: " + e.getMessage());
+				continue;
+			}
+		}
+
+		ArrayList<Discount> discounts = DBNinja.getDiscountList();
+		System.out.println("Do you want to add discounts to this Pizza? Enter y/n:");
+		if (reader.readLine().equals("y")) {
+			System.out.println("Getting discount list...");
+
+			while (true) {
+				for (Discount d : discounts) {
+					System.out.println(d.toString());
+				}
+
+				System.out.println(
+						"Which Pizza Discount do you want to add? Enter the DiscountID. Enter -1 to stop adding Discounts:");
+				try {
+					int discountID = Integer.parseInt(reader.readLine());
+
+					if (discountID == -1) {
+						System.out.println("Do you want to add more discounts to this Pizza? Enter y/n:");
+						if (reader.readLine().equals("y")) {
+							continue;
+						}
+						break;
+					}
+
+					for (Discount d : discounts) {
+						if (d.getDiscountID() == discountID) {
+							pizza.addDiscounts(d);
+							break;
+						}
+					}
+				} catch (NumberFormatException e) {
+					System.out.println("Invalid input: " + e.getMessage());
+					continue;
+				}
+			}
+		}
+
+		double price = DBNinja.getBaseCustPrice(size, crust), cost = DBNinja.getBaseBusPrice(size, crust);
+		for (Topping t : pizza.getToppings()) {
+			price += t.getCustPrice();
+			cost += t.getBusPrice();
+			;
+		}
+
+		double discountPercent = 0;
+		double discountAmt = 0;
+		for (Discount d : pizza.getDiscounts()) {
+			if (d.isPercent()) {
+				discountPercent += d.getAmount();
+			} else {
+				discountAmt += d.getAmount();
+			}
+		}
+		price *= (100 - discountPercent) / 100;
+		price -= discountAmt;
+
+		pizza.setSize(size);
+		pizza.setCrustType(crust);
+		pizza.setOrderID(orderID);
+		pizza.setPizzaState("In progress");
+		pizza.setCustPrice(price);
+		pizza.setBusPrice(cost);
+
+		return pizza;
 	}
 
 	private static int getTopIndexFromList(int TopID, ArrayList<Topping> tops) {

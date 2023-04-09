@@ -68,7 +68,7 @@ public final class DBNinja {
 		}
 	}
 
-	public static void addOrder(Order o) throws SQLException, IOException {
+	public static int addOrder(Order o) throws SQLException, IOException {
 		connect_to_db();
 		/*
 		 * add code to add the order to the DB. Remember that we're not just
@@ -76,17 +76,44 @@ public final class DBNinja {
 		 * the necessary data for the delivery, dinein, and pickup tables
 		 */
 
-		String sqlString = "INSERT INTO customer_order (CustOrderCustID, CustOrderOrderedAt, CustOrderCost, CustOrderPrice, CustOrderIsPickup, CustOrderIsDelivery, CustOrderIsDineIn)";
+		String sql = "INSERT INTO customer_order (CustOrderCustID, CustOrderOrderedAt, CustOrderCost, CustOrderPrice, CustOrderIsComplete, CustOrderIsPickup, CustOrderIsDelivery, CustOrderIsDineIn) "
+				+
+				"VALUES (?, NOW(), 0, 0, ?, ?, ?, ?);";
+		PreparedStatement stmt = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS);
 
-		if (o instanceof DineinOrder) {
+		stmt.setInt(1, o.getCustID());
+		stmt.setBoolean(2, o.getIsComplete() == 1 ? true : false);
 
-		} else if (o instanceof DeliveryOrder) {
-
-		} else if (o instanceof PickupOrder) {
-
+		Boolean isPickup = false, isDelivery = false, isDineIn = false;
+		switch (o.getOrderType()) {
+			case "Dine-in":
+				isDineIn = true;
+				break;
+			case "Pick-up":
+				isPickup = true;
+				break;
+			case "Delivery":
+				isDelivery = true;
+				break;
 		}
 
-		closeConnection();
+		stmt.setBoolean(3, isPickup);
+		stmt.setBoolean(4, isDelivery);
+		stmt.setBoolean(5, isDineIn);
+
+		int affectedRows = stmt.executeUpdate();
+		if (affectedRows == 0) {
+			throw new SQLException("Insert failed, no rows affected.");
+		}
+
+		ResultSet generatedKeys = stmt.getGeneratedKeys();
+		if (generatedKeys.next()) {
+			int orderID = generatedKeys.getInt(1);
+			closeConnection();
+			return orderID;
+		} else {
+			throw new SQLException("Insert failed, no ID obtained.");
+		}
 	}
 
 	public static void addPizza(Pizza p) throws SQLException, IOException {
@@ -97,6 +124,46 @@ public final class DBNinja {
 		 * instance of topping usage to that bridge table if you have't accounted
 		 * for that somewhere else.
 		 */
+
+		String sql = "INSERT INTO pizza (PizzaCustOrderID, PizzaSize, PizzaCrust, PizzaIsDone, PizzaPrice, PizzaCost) "
+				+
+				"VALUES (?, ?, ?, False, ?, ?)";
+		PreparedStatement pstmt = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS);
+
+		pstmt.setInt(1, p.getOrderID());
+		pstmt.setString(2, p.getSize());
+		pstmt.setString(3, p.getCrustType());
+		pstmt.setDouble(4, p.getCustPrice());
+		pstmt.setDouble(5, p.getBusPrice());
+
+		int affectedRows = pstmt.executeUpdate();
+		if (affectedRows == 0) {
+			throw new SQLException("Insert failed, no rows affected.");
+		}
+
+		ResultSet generatedKeys = pstmt.getGeneratedKeys();
+		if (generatedKeys.next()) {
+			p.setPizzaID(generatedKeys.getInt(1));
+		} else {
+			throw new SQLException("Insert failed, no ID obtained.");
+		}
+
+		for (int i = 0; i < p.getToppings().size(); i++) {
+			useTopping(p, p.getToppings().get(i), p.getIsDoubleArray()[i], true);
+		}
+
+		for (int i = 0; i < p.getDiscounts().size(); i++) {
+			usePizzaDiscount(p, p.getDiscounts().get(i), true);
+		}
+
+		sql = "UPDATE customer_order SET CustOrderCost = CustOrderCost + ?, CustOrderPrice = CustOrderPrice + ? " +
+				"WHERE CustOrderID = ?;";
+		pstmt = conn.prepareStatement(sql);
+
+		pstmt.setDouble(1, p.getBusPrice());
+		pstmt.setDouble(2, p.getCustPrice());
+		pstmt.setInt(3, p.getOrderID());
+		pstmt.executeUpdate();
 
 		closeConnection();
 	}
@@ -116,7 +183,8 @@ public final class DBNinja {
 
 	// this function will update toppings inventory in SQL and add entities to the
 	// Pizzatops table. Pass in the p pizza that is using t topping
-	public static void useTopping(Pizza p, Topping t, boolean isDoubled) throws SQLException, IOException {
+	public static void useTopping(Pizza p, Topping t, boolean isDoubled, boolean keepConnOpen)
+			throws SQLException, IOException {
 		connect_to_db();
 		/*
 		 * This function should 2 two things.
@@ -128,19 +196,67 @@ public final class DBNinja {
 		 * toppings that you don't have, just print
 		 * that you've run out of that topping.
 		 */
+		String sql = "INSERT INTO pizza_topping (PizzaTopPizzaID, PizzaTopToppingID, PizzaTopIsExtra) " +
+				"VALUES (?, ?, ?);";
+		PreparedStatement stmt = conn.prepareStatement(sql);
 
-		closeConnection();
+		stmt.setInt(1, p.getPizzaID());
+		stmt.setInt(2, t.getTopID());
+		stmt.setBoolean(3, isDoubled);
+
+		stmt.executeUpdate();
+
+		sql = "UPDATE topping SET ToppingInventory = ToppingInventory - ? WHERE ToppingID = ?;";
+		stmt = conn.prepareStatement(sql);
+
+		switch (p.getSize()) {
+			case "small":
+				stmt.setDouble(1, t.getPerAMT());
+				break;
+			case "medium":
+				stmt.setDouble(1, t.getMedAMT());
+				break;
+			case "large":
+				stmt.setDouble(1, t.getLgAMT());
+				break;
+			case "x-large":
+				stmt.setDouble(1, t.getXLAMT());
+				break;
+		}
+
+		stmt.setInt(2, t.getTopID());
+		stmt.executeUpdate();
+
+		if (!keepConnOpen) {
+			closeConnection();
+		}
 	}
 
-	public static void usePizzaDiscount(Pizza p, Discount d) throws SQLException, IOException {
+	public static void usePizzaDiscount(Pizza p, Discount d, boolean keepConnOpen) throws SQLException, IOException {
 		connect_to_db();
 		/*
 		 * Helper function I used to update the pizza-discount bridge table.
 		 * You might use this, you might not depending on where / how to want to update
 		 * this table
 		 */
+		String sql = "INSERT INTO discount_pizza (DiscPizzaDiscountID, DiscPizzaPizzaID) " +
+				"VALUES (?, ?);";
+		PreparedStatement stmt = conn.prepareStatement(sql);
 
-		closeConnection();
+		stmt.setInt(1, d.getDiscountID());
+		stmt.setInt(2, p.getPizzaID());
+		stmt.executeUpdate();
+
+		sql = "UPDATE customer_order SET CustOrderPrice = CustOrderPrice + ? WHERE CustOrderID = ?;";
+		stmt = conn.prepareStatement(sql);
+
+		stmt.setDouble(1, p.getBusPrice());
+		stmt.setInt(2, p.getOrderID());
+
+		stmt.executeUpdate();
+		if (!keepConnOpen) {
+			closeConnection();
+		}
 	}
 
 	public static void useOrderDiscount(Order o, Discount d) throws SQLException, IOException {
@@ -150,7 +266,28 @@ public final class DBNinja {
 		 * You might use this, you might not depending on where / how to want to update
 		 * this table
 		 */
+		String sql = "INSERT INTO discount_order (DiscOrderDiscountID, DiscOrderCustOrderID) " +
+				"VALUES (?, ?);";
+		PreparedStatement stmt = conn.prepareStatement(sql);
 
+		stmt.setInt(1, d.getDiscountID());
+		stmt.setInt(2, o.getOrderID());
+		stmt.executeUpdate();
+
+		sql = "UPDATE customer_order SET CustOrderPrice = CustOrderPrice - ? " +
+				"WHERE CustOrderID = ?;";
+
+		if (d.isPercent()) {
+			sql = "UPDATE customer_order SET CustOrderPrice = CustOrderPrice * ((100 - ?)/100) " +
+					"WHERE CustOrderID = ?;";
+		}
+
+		stmt = conn.prepareStatement(sql);
+
+		stmt.setDouble(1, d.getAmount());
+		stmt.setInt(2, o.getOrderID());
+
+		stmt.executeUpdate();
 		closeConnection();
 	}
 
@@ -390,6 +527,16 @@ public final class DBNinja {
 		// add code to get the base price (for the customer) for that size and crust
 		// pizza Depending on how
 		// you store size & crust in your database, you may have to do a conversion
+		String sql = "SELECT SizeCrustPrice FROM size_crust WHERE SizeCrustSize = ? AND SizeCrustCrust = ?;";
+		PreparedStatement stmt = conn.prepareStatement(sql);
+
+		stmt.setString(1, size);
+		stmt.setString(2, crust);
+
+		ResultSet rs = stmt.executeQuery();
+		while (rs.next()) {
+			bp += rs.getDouble("SizeCrustPrice");
+		}
 
 		closeConnection();
 		return bp;
@@ -421,6 +568,16 @@ public final class DBNinja {
 		// add code to get the base cost (for the business) for that size and crust
 		// pizza Depending on how
 		// you store size and crust in your database, you may have to do a conversion
+		String sql = "SELECT SizeCrustCost FROM size_crust WHERE SizeCrustSize = ? AND SizeCrustCrust = ?;";
+		PreparedStatement stmt = conn.prepareStatement(sql);
+
+		stmt.setString(1, size);
+		stmt.setString(2, crust);
+
+		ResultSet rs = stmt.executeQuery();
+		while (rs.next()) {
+			bp += rs.getDouble("SizeCrustCost");
+		}
 
 		closeConnection();
 		return bp;
