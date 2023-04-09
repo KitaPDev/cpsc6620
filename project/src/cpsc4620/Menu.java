@@ -4,6 +4,9 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.sql.SQLException;
+import java.text.NumberFormat;
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
@@ -41,7 +44,11 @@ public class Menu {
 		BufferedReader reader = new BufferedReader(new InputStreamReader(System.in));
 		DBIniter.init();
 		String option = reader.readLine();
-		menu_option = Integer.parseInt(option);
+		try {
+			menu_option = Integer.parseInt(option);
+		} catch (NumberFormatException e) {
+			System.out.println("Invalid input: " + e.getMessage());
+		}
 
 		while (menu_option != 9) {
 
@@ -79,9 +86,14 @@ public class Menu {
 
 			PrintMenu();
 			option = reader.readLine();
-			menu_option = Integer.parseInt(option);
-		}
 
+			try {
+				menu_option = Integer.parseInt(option);
+			} catch (NumberFormatException e) {
+				menu_option = 0;
+				System.out.println("Invalid input: " + e.getMessage());
+			}
+		}
 	}
 
 	public static void PrintMenu() {
@@ -198,7 +210,80 @@ public class Menu {
 		 * just the simplified view.
 		 * 
 		 */
+		BufferedReader reader = new BufferedReader(new InputStreamReader(System.in));
+		String input = "";
 
+		while (true) {
+			System.out.println("Would you like to:");
+			System.out.println("(a) display all orders");
+			System.out.println("(b) display orders since a specific date");
+
+			input = reader.readLine();
+			if (input.equals("a") || input.equals("b")) {
+				break;
+			}
+		}
+
+		switch (input) {
+			case "a": {
+				ArrayList<Order> orders = DBNinja.getOrderList();
+				for (Order o : orders) {
+					System.out.println(o.toSimplePrint());
+				}
+
+				Order order = null;
+				while (order == null) {
+					System.out.println("Which order would you like to see in detail? Enter the number:");
+					int orderID = Integer.parseInt(reader.readLine());
+					for (Order o : orders) {
+						if (o.getOrderID() == orderID) {
+							order = o;
+							break;
+						}
+					}
+				}
+				System.out.println(order.toString());
+				break;
+			}
+
+			case "b": {
+				Date date = null;
+				while (date == null) {
+					System.out.println("What is the date you want to restrict by? (FORMAT = YYYY-MM-DD)");
+
+					try {
+						Date tmp = new SimpleDateFormat("yyyy-MM-dd").parse(reader.readLine());
+						date = tmp;
+					} catch (ParseException e) {
+						System.out.println("Invalid input: " + e.getMessage());
+					}
+				}
+
+				ArrayList<Order> orders = DBNinja.getOrderList(date);
+				for (Order o : orders) {
+					System.out.println(o.toSimplePrint());
+				}
+
+				Order order = null;
+				while (order == null) {
+					System.out.println("Which order would you like to see in detail? Enter the number:");
+					try {
+						int orderID = Integer.parseInt(reader.readLine());
+						for (Order o : orders) {
+							if (o.getOrderID() == orderID) {
+								order = o;
+								break;
+							}
+						}
+					} catch (NumberFormatException e) {
+						System.out.println("Invalid input: " + e.getMessage());
+					}
+
+				}
+				System.out.println(order.toString());
+				break;
+			}
+		}
 	}
 
 	// When an order is completed, we need to make sure it is marked as complete

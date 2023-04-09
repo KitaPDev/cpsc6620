@@ -2,8 +2,12 @@ package cpsc4620;
 
 import java.io.IOException;
 import java.sql.*;
+import java.text.SimpleDateFormat;
 import java.util.*;
 import java.util.Date;
+
+import com.mysql.cj.jdbc.admin.MiniAdmin;
+import com.mysql.cj.protocol.Resultset;
 
 /*
  * This file is where most of your code changes will occur You will write the code to retrieve
@@ -54,7 +58,6 @@ public final class DBNinja {
 			e.printStackTrace();
 			return false;
 		}
-
 	}
 
 	private static void closeConnection() {
@@ -215,8 +218,9 @@ public final class DBNinja {
 		return null;
 	}
 
-	public static ArrayList<Order> getCurrentOrders() throws SQLException, IOException {
+	public static ArrayList<Order> getOrderList() throws SQLException, IOException {
 		connect_to_db();
+		ArrayList<Order> orders = new ArrayList<Order>();
 		/*
 		 * This function should return an arraylist of all of the orders.
 		 * Remember that in Java, we account for supertypes and subtypes
@@ -228,8 +232,141 @@ public final class DBNinja {
 		 * these orders should print in order from newest to oldest.
 		 */
 
+		ArrayList<Pizza> pizzas = getPizzaList(true);
+
+		String sql = "SELECT * FROM customer_order " +
+				"LEFT JOIN pickup ON PickupCustOrderID = CustOrderID " +
+				"LEFT JOIN delivery ON DeliveryCustOrderID = CustOrderID " +
+				"LEFT JOIN dine_in ON DineinCustOrderID = CustOrderID " +
+				"ORDER BY CustOrderOrderedAt DESC;";
+		Statement stmt = conn.createStatement();
+		ResultSet rs = stmt.executeQuery(sql);
+
+		while (rs.next()) {
+			int orderID = rs.getInt("CustOrderID");
+			int custID = rs.getInt("CustOrderCustID");
+			Date orderedAt = rs.getDate("CustOrderOrderedAt");
+			double price = rs.getDouble("CustOrderPrice");
+			double cost = rs.getDouble("CustOrderCost");
+
+			int isComplete = 1;
+			for (Pizza p : pizzas) {
+				if (p.getOrderID() == orderID && p.getPizzaState() != "Done") {
+					isComplete = 0;
+					break;
+				}
+			}
+
+			if (rs.getBoolean("CustOrderIsPickup")) {
+				orders.add(new PickupOrder(orderID, custID, orderedAt.toString(), price, cost,
+						rs.getBoolean("PickupIsPickedUp") ? 1 : 0, isComplete));
+
+			} else if (rs.getBoolean("CustOrderIsDelivery")) {
+				orders.add(new DeliveryOrder(orderID, custID, orderedAt.toString(), price, cost, isComplete,
+						rs.getString("DeliveryAddress")));
+
+			} else {
+				orders.add(new DineinOrder(orderID, custID, orderedAt.toString(), price, cost, isComplete,
+						rs.getInt("DineInTableNum")));
+			}
+		}
+
+		stmt.close();
 		closeConnection();
-		return null;
+		return orders;
+	}
+
+	public static ArrayList<Order> getOrderList(Date fromDate) throws SQLException, IOException {
+		connect_to_db();
+		ArrayList<Order> orders = new ArrayList<Order>();
+		/*
+		 * This function should return an arraylist of all of the orders.
+		 * Remember that in Java, we account for supertypes and subtypes
+		 * which means that when we create an arrayList of orders, that really
+		 * means we have an arrayList of dineinOrders, deliveryOrders, and pickupOrders.
+		 * 
+		 * Also, like toppings, whenever we print out the orders using menu function 4
+		 * and 5
+		 * these orders should print in order from newest to oldest.
+		 */
+
+		ArrayList<Pizza> pizzas = getPizzaList(true);
+
+		String sql = "SELECT * FROM customer_order " +
+				"LEFT JOIN pickup ON PickupCustOrderID = CustOrderID " +
+				"LEFT JOIN delivery ON DeliveryCustOrderID = CustOrderID " +
+				"LEFT JOIN dine_in ON DineinCustOrderID = CustOrderID " +
+				"WHERE CustOrderOrderedAt >= '" + new SimpleDateFormat("yyyy-MM-dd").format(fromDate) + "' " +
+				"ORDER BY CustOrderOrderedAt DESC;";
+		Statement stmt = conn.createStatement();
+		ResultSet rs = stmt.executeQuery(sql);
+
+		while (rs.next()) {
+			int orderID = rs.getInt("CustOrderID");
+			int custID = rs.getInt("CustOrderCustID");
+			Date orderedAt = rs.getDate("CustOrderOrderedAt");
+			double price = rs.getDouble("CustOrderPrice");
+			double cost = rs.getDouble("CustOrderCost");
+
+			int isComplete = 1;
+			for (Pizza p : pizzas) {
+				if (p.getOrderID() == orderID && p.getPizzaState() != "Done") {
+					isComplete = 0;
+					break;
+				}
+			}
+
+			if (rs.getBoolean("CustOrderIsPickup")) {
+				orders.add(new PickupOrder(orderID, custID, orderedAt.toString(), price, cost,
+						rs.getBoolean("PickupIsPickedUp") ? 1 : 0, isComplete));
+
+			} else if (rs.getBoolean("CustOrderIsDelivery")) {
+				orders.add(new DeliveryOrder(orderID, custID, orderedAt.toString(), price, cost, isComplete,
+						rs.getString("DeliveryAddress")));
+
+			} else {
+				orders.add(new DineinOrder(orderID, custID, orderedAt.toString(), price, cost, isComplete,
+						rs.getInt("DineInTableNum")));
+			}
+		}
+
+		stmt.close();
+		closeConnection();
+		return orders;
+	}
+
+	public static ArrayList<Pizza> getPizzaList(Boolean keepConnOpen) throws SQLException, IOException {
+		connect_to_db();
+
+		ArrayList<Pizza> pizzas = new ArrayList<Pizza>();
+
+		String sql = "SELECT * FROM pizza;";
+		Statement stmt = conn.createStatement();
+		ResultSet rs = stmt.executeQuery(sql);
+
+		while (rs.next()) {
+			int pizzaID = rs.getInt("PizzaID");
+			String crustType = rs.getString("PizzaCrust");
+			String size = rs.getString("PizzaSize");
+			int orderID = rs.getInt("PizzaCustOrderID");
+
+			String pizzaState = "In progress";
+			if (rs.getBoolean("PizzaIsDone")) {
+				pizzaState = "Done";
+			}
+
+			double price = rs.getDouble("PizzaPrice");
+			double cost = rs.getDouble("PizzaCost");
+
+			pizzas.add(new Pizza(pizzaID, size, crustType, orderID, pizzaState, null,
+					price, cost));
+		}
+
+		stmt.close();
+		if (!keepConnOpen) {
+			closeConnection();
+		}
+		return pizzas;
 	}
 
 	public static ArrayList<Order> sortOrders(ArrayList<Order> list) {
@@ -290,7 +427,7 @@ public final class DBNinja {
 		 */
 		connect_to_db();
 		String ret = "";
-		String query = "Select FName, LName From Customer WHERE CustID=" + CustID + ";";
+		String query = "Select CustomerFirstName, CustomerLastName From customer WHERE CustomerID = " + CustID + ";";
 		Statement stmt = conn.createStatement();
 		ResultSet rset = stmt.executeQuery(query);
 
@@ -313,23 +450,58 @@ public final class DBNinja {
 	}
 
 	public static ArrayList<Discount> getDiscountList() throws SQLException, IOException {
-		ArrayList<Discount> discs = new ArrayList<Discount>();
 		connect_to_db();
 		// returns a list of all the discounts.
+		ArrayList<Discount> discs = new ArrayList<Discount>();
+		String sql = "SELECT * FROM discount;";
+		Statement stmt = conn.prepareStatement(sql);
+		ResultSet rs = stmt.executeQuery(sql);
+
+		while (rs.next()) {
+			int discountID = rs.getInt("DiscountID");
+			String discountName = rs.getString("DiscountName");
+			double amount = rs.getDouble("DiscountAmount");
+			boolean isPercent = rs.getBoolean("DiscountIsPercent");
+
+			discs.add(new Discount(discountID, discountName, amount, isPercent));
+		}
 
 		closeConnection();
 		return discs;
 	}
 
-	public static ArrayList<Customer> getCustomerList() throws SQLException, IOException {
-		ArrayList<Customer> custs = new ArrayList<Customer>();
+	public static ArrayList<Discount> getDiscountList(Boolean keepConnOpen) throws SQLException, IOException {
 		connect_to_db();
+		// returns a list of all the discounts.
+		ArrayList<Discount> discs = new ArrayList<Discount>();
+		String sql = "SELECT * FROM discount;";
+		Statement stmt = conn.prepareStatement(sql);
+		ResultSet rs = stmt.executeQuery(sql);
+
+		while (rs.next()) {
+			int discountID = rs.getInt("DiscountID");
+			String discountName = rs.getString("DiscountName");
+			double amount = rs.getDouble("DiscountAmount");
+			boolean isPercent = rs.getBoolean("DiscountIsPercent");
+
+			discs.add(new Discount(discountID, discountName, amount, isPercent));
+		}
+
+		if (!keepConnOpen) {
+			closeConnection();
+		}
+		return discs;
+	}
+
+	public static ArrayList<Customer> getCustomerList() throws SQLException, IOException {
+		connect_to_db();
+		ArrayList<Customer> custs = new ArrayList<Customer>();
 		/*
 		 * return an arrayList of all the customers. These customers should
 		 * print in alphabetical order, so account for that as you see fit.
 		 */
 		Statement stmt = conn.createStatement();
-		String sql = "SELECT * FROM customer ORDER BY CustomerFirstName, CustomerLastName";
+		String sql = "SELECT * FROM customer ORDER BY CustomerFirstName, CustomerLastName;";
 		ResultSet rs = stmt.executeQuery(sql);
 
 		while (rs.next()) {
