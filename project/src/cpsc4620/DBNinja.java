@@ -232,8 +232,6 @@ public final class DBNinja {
 		 * these orders should print in order from newest to oldest.
 		 */
 
-		ArrayList<Pizza> pizzas = getPizzaList(true);
-
 		String sql = "SELECT * FROM customer_order " +
 				"LEFT JOIN pickup ON PickupCustOrderID = CustOrderID " +
 				"LEFT JOIN delivery ON DeliveryCustOrderID = CustOrderID " +
@@ -249,24 +247,18 @@ public final class DBNinja {
 			double price = rs.getDouble("CustOrderPrice");
 			double cost = rs.getDouble("CustOrderCost");
 
-			int isComplete = 1;
-			for (Pizza p : pizzas) {
-				if (p.getOrderID() == orderID && p.getPizzaState() != "Done") {
-					isComplete = 0;
-					break;
-				}
-			}
-
 			if (rs.getBoolean("CustOrderIsPickup")) {
 				orders.add(new PickupOrder(orderID, custID, orderedAt.toString(), price, cost,
-						rs.getBoolean("PickupIsPickedUp") ? 1 : 0, isComplete));
+						rs.getBoolean("PickupIsPickedUp") ? 1 : 0, rs.getBoolean("CustOrderIsComplete") ? 1 : 0));
 
 			} else if (rs.getBoolean("CustOrderIsDelivery")) {
-				orders.add(new DeliveryOrder(orderID, custID, orderedAt.toString(), price, cost, isComplete,
+				orders.add(new DeliveryOrder(orderID, custID, orderedAt.toString(), price, cost,
+						rs.getBoolean("CustOrderIsComplete") ? 1 : 0,
 						rs.getString("DeliveryAddress")));
 
 			} else {
-				orders.add(new DineinOrder(orderID, custID, orderedAt.toString(), price, cost, isComplete,
+				orders.add(new DineinOrder(orderID, custID, orderedAt.toString(), price, cost,
+						rs.getBoolean("CustOrderIsComplete") ? 1 : 0,
 						rs.getInt("DineInTableNum")));
 			}
 		}
@@ -290,8 +282,6 @@ public final class DBNinja {
 		 * these orders should print in order from newest to oldest.
 		 */
 
-		ArrayList<Pizza> pizzas = getPizzaList(true);
-
 		String sql = "SELECT * FROM customer_order " +
 				"LEFT JOIN pickup ON PickupCustOrderID = CustOrderID " +
 				"LEFT JOIN delivery ON DeliveryCustOrderID = CustOrderID " +
@@ -308,24 +298,18 @@ public final class DBNinja {
 			double price = rs.getDouble("CustOrderPrice");
 			double cost = rs.getDouble("CustOrderCost");
 
-			int isComplete = 1;
-			for (Pizza p : pizzas) {
-				if (p.getOrderID() == orderID && p.getPizzaState() != "Done") {
-					isComplete = 0;
-					break;
-				}
-			}
-
 			if (rs.getBoolean("CustOrderIsPickup")) {
 				orders.add(new PickupOrder(orderID, custID, orderedAt.toString(), price, cost,
-						rs.getBoolean("PickupIsPickedUp") ? 1 : 0, isComplete));
+						rs.getBoolean("PickupIsPickedUp") ? 1 : 0, rs.getBoolean("CustOrderIsComplete") ? 1 : 0));
 
 			} else if (rs.getBoolean("CustOrderIsDelivery")) {
-				orders.add(new DeliveryOrder(orderID, custID, orderedAt.toString(), price, cost, isComplete,
+				orders.add(new DeliveryOrder(orderID, custID, orderedAt.toString(), price, cost,
+						rs.getBoolean("CustOrderIsComplete") ? 1 : 0,
 						rs.getString("DeliveryAddress")));
 
 			} else {
-				orders.add(new DineinOrder(orderID, custID, orderedAt.toString(), price, cost, isComplete,
+				orders.add(new DineinOrder(orderID, custID, orderedAt.toString(), price, cost,
+						rs.getBoolean("CustOrderIsComplete") ? 1 : 0,
 						rs.getInt("DineInTableNum")));
 			}
 		}
@@ -333,40 +317,6 @@ public final class DBNinja {
 		stmt.close();
 		closeConnection();
 		return orders;
-	}
-
-	public static ArrayList<Pizza> getPizzaList(Boolean keepConnOpen) throws SQLException, IOException {
-		connect_to_db();
-
-		ArrayList<Pizza> pizzas = new ArrayList<Pizza>();
-
-		String sql = "SELECT * FROM pizza;";
-		Statement stmt = conn.createStatement();
-		ResultSet rs = stmt.executeQuery(sql);
-
-		while (rs.next()) {
-			int pizzaID = rs.getInt("PizzaID");
-			String crustType = rs.getString("PizzaCrust");
-			String size = rs.getString("PizzaSize");
-			int orderID = rs.getInt("PizzaCustOrderID");
-
-			String pizzaState = "In progress";
-			if (rs.getBoolean("PizzaIsDone")) {
-				pizzaState = "Done";
-			}
-
-			double price = rs.getDouble("PizzaPrice");
-			double cost = rs.getDouble("PizzaCost");
-
-			pizzas.add(new Pizza(pizzaID, size, crustType, orderID, pizzaState, null,
-					price, cost));
-		}
-
-		stmt.close();
-		if (!keepConnOpen) {
-			closeConnection();
-		}
-		return pizzas;
 	}
 
 	public static ArrayList<Order> sortOrders(ArrayList<Order> list) {
