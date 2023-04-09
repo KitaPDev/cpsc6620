@@ -305,7 +305,20 @@ public class Menu {
 	public static void ViewInventoryLevels() throws SQLException, IOException {
 		// print the inventory. I am really just concerned with the ID, the name, and
 		// the current inventory
+		ArrayList<Topping> toppings = DBNinja.getInventory();
 
+		System.out.println("ID\tName\t\t\tCurINVT");
+		for (Topping t : toppings) {
+			String line = t.getTopID() + "\t" + t.getTopName() + "\t";
+			if (t.getTopName().length() < 15) {
+				line += "\t";
+			}
+			if (t.getTopName().length() < 8) {
+				line += "\t";
+			}
+			line += t.getCurINVT();
+			System.out.println(line);
+		}
 	}
 
 	// Select an inventory item and add more to the inventory level to re-stock the
@@ -315,7 +328,49 @@ public class Menu {
 		 * This should print the current inventory and then ask the user which topping
 		 * they want to add more to and how much to add
 		 */
+		ArrayList<Topping> toppings = DBNinja.getInventory();
 
+		System.out.println("ID\tName\t\t\tCurINVT");
+		for (Topping t : toppings) {
+			String line = t.getTopID() + "\t" + t.getTopName() + "\t";
+			if (t.getTopName().length() < 15) {
+				line += "\t";
+			}
+			if (t.getTopName().length() < 8) {
+				line += "\t";
+			}
+			line += t.getCurINVT();
+			System.out.println(line);
+		}
+
+		BufferedReader reader = new BufferedReader(new InputStreamReader(System.in));
+
+		Topping topping = null;
+		while (topping == null) {
+			System.out.println("Which topping do you want to add inventory to? Enter the number:");
+			try {
+				String input = reader.readLine();
+				int topID = Integer.parseInt(input);
+				for (Topping t : toppings) {
+					if (t.getTopID() == topID) {
+						topping = t;
+						break;
+					}
+				}
+
+			} catch (NumberFormatException e) {
+				System.out.println("Invalid input: " + e.getMessage());
+			}
+		}
+
+		System.out.println("How many units would you like to add?");
+		try {
+			String input = reader.readLine();
+			double units = Double.parseDouble(input);
+			DBNinja.AddToInventory(topping, units);
+		} catch (NumberFormatException e) {
+			System.out.println("Invalid input: " + e.getMessage());
+		}
 	}
 
 	// A function that builds a pizza. Used in our add new order function

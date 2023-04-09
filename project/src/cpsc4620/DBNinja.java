@@ -186,7 +186,13 @@ public final class DBNinja {
 		/*
 		 * Adds toAdd amount of topping to topping t.
 		 */
+		String sql = "UPDATE topping SET ToppingInventory = ToppingInventory + ? WHERE ToppingID = ?;";
+		PreparedStatement stmt = conn.prepareStatement(sql);
 
+		stmt.setDouble(1, toAdd);
+		stmt.setInt(2, t.getTopID());
+
+		stmt.executeUpdate();
 		closeConnection();
 	}
 
@@ -213,9 +219,30 @@ public final class DBNinja {
 		 * should be returned in alphabetical order if you don't
 		 * plan on using a printInventory function
 		 */
+		ArrayList<Topping> toppings = new ArrayList<Topping>();
+
+		String sql = "SELECT * FROM topping ORDER BY ToppingName;";
+		Statement stmt = conn.createStatement();
+		ResultSet rs = stmt.executeQuery(sql);
+
+		while (rs.next()) {
+			int topID = rs.getInt("ToppingID");
+			String topName = rs.getString("ToppingName");
+			double amtSmall = rs.getDouble("ToppingAmtSmall");
+			double amtMedium = rs.getDouble("ToppingAmtMedium");
+			double amtLarge = rs.getDouble("ToppingAmtLarge");
+			double amtXLarge = rs.getDouble("ToppingAmtXLarge");
+			double price = rs.getDouble("ToppingPrice");
+			double cost = rs.getDouble("ToppingCost");
+			double minInv = rs.getDouble("ToppingMinInventory");
+			double currInv = rs.getDouble("ToppingInventory");
+
+			toppings.add(new Topping(topID, topName, amtSmall, amtMedium, amtLarge, amtXLarge, price, cost,
+					(int) minInv, (int) currInv));
+		}
 
 		closeConnection();
-		return null;
+		return toppings;
 	}
 
 	public static ArrayList<Order> getOrderList() throws SQLException, IOException {
