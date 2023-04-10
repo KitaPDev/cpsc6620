@@ -68,7 +68,7 @@ public final class DBNinja {
 		}
 	}
 
-	public static int addOrder(Order o) throws SQLException, IOException {
+	public static void addOrder(Order o, Customer c) throws SQLException, IOException {
 		connect_to_db();
 		/*
 		 * add code to add the order to the DB. Remember that we're not just
@@ -78,39 +78,86 @@ public final class DBNinja {
 
 		String sql = "INSERT INTO customer_order (CustOrderCustID, CustOrderOrderedAt, CustOrderCost, CustOrderPrice, CustOrderIsComplete, CustOrderIsPickup, CustOrderIsDelivery, CustOrderIsDineIn) "
 				+
-				"VALUES (?, NOW(), 0, 0, ?, ?, ?, ?);";
-		PreparedStatement stmt = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS);
+				"VALUES (?, NOW(), ?, ?, ?, ?, ?, ?);";
+		PreparedStatement pstmt = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS);
 
-		stmt.setInt(1, o.getCustID());
-		stmt.setBoolean(2, o.getIsComplete() == 1 ? true : false);
+		pstmt.setInt(1, o.getCustID());
+		pstmt.setDouble(2, o.getBusPrice());
+		pstmt.setDouble(3, o.getCustPrice());
+		pstmt.setBoolean(4, o.getIsComplete() == 1 ? true : false);
 
 		Boolean isPickup = false, isDelivery = false, isDineIn = false;
 		switch (o.getOrderType()) {
-			case "Dine-in":
+			case DBNinja.dine_in:
 				isDineIn = true;
 				break;
-			case "Pick-up":
+			case DBNinja.pickup:
 				isPickup = true;
 				break;
-			case "Delivery":
+			case DBNinja.delivery:
 				isDelivery = true;
 				break;
 		}
 
-		stmt.setBoolean(3, isPickup);
-		stmt.setBoolean(4, isDelivery);
-		stmt.setBoolean(5, isDineIn);
+		pstmt.setBoolean(5, isPickup);
+		pstmt.setBoolean(6, isDelivery);
+		pstmt.setBoolean(7, isDineIn);
 
-		int affectedRows = stmt.executeUpdate();
+		int affectedRows = pstmt.executeUpdate();
 		if (affectedRows == 0) {
 			throw new SQLException("Insert failed, no rows affected.");
 		}
 
-		ResultSet generatedKeys = stmt.getGeneratedKeys();
+		ResultSet generatedKeys = pstmt.getGeneratedKeys();
 		if (generatedKeys.next()) {
-			int orderID = generatedKeys.getInt(1);
+			o.setOrderID(generatedKeys.getInt(1));
+
+			for (Discount d : o.getDiscountList()) {
+				DBNinja.useOrderDiscount(o, d);
+			}
+
+			if (o instanceof DineinOrder) {
+				DineinOrder d = (DineinOrder) o;
+
+				sql = "INSERT INTO dine_in (DineInCustOrderID, DineInTableNum) VALUES (?, ?);";
+				PreparedStatement ps = conn.prepareStatement(sql);
+
+				ps.setInt(1, o.getOrderID());
+				ps.setInt(2, d.getTableNum());
+
+				ps.executeUpdate();
+
+			} else if (o instanceof PickupOrder) {
+				PickupOrder p = (PickupOrder) o;
+
+				sql = "INSERT INTO pickup VALUES (?, ?);";
+				PreparedStatement ps = conn.prepareStatement(sql);
+
+				ps.setInt(1, o.getOrderID());
+				ps.setBoolean(2, p.getIsPickedUp() == 1 ? true : false);
+
+				ps.executeUpdate();
+
+			} else if (o instanceof DeliveryOrder) {
+				DeliveryOrder d = (DeliveryOrder) o;
+
+				sql = "INSERT INTO delivery (DeliveryCustOrderID, DeliveryFirstName, DeliveryLastName, DeliveryAddress) VALUES (?, ?, ?, ?);";
+				PreparedStatement ps = conn.prepareStatement(sql);
+
+				ps.setInt(1, o.getOrderID());
+				ps.setString(2, c.getFName());
+				ps.setString(3, c.getLName());
+				ps.setString(4, d.getAddress());
+
+				ps.executeUpdate();
+			}
+
+			for (Pizza p : o.getPizzaList()) {
+				p.setOrderID(o.getOrderID());
+				DBNinja.addPizza(p);
+			}
+
 			closeConnection();
-			return orderID;
 		} else {
 			throw new SQLException("Insert failed, no ID obtained.");
 		}
@@ -155,15 +202,6 @@ public final class DBNinja {
 		for (int i = 0; i < p.getDiscounts().size(); i++) {
 			usePizzaDiscount(p, p.getDiscounts().get(i), true);
 		}
-
-		sql = "UPDATE customer_order SET CustOrderCost = CustOrderCost + ?, CustOrderPrice = CustOrderPrice + ? " +
-				"WHERE CustOrderID = ?;";
-		pstmt = conn.prepareStatement(sql);
-
-		pstmt.setDouble(1, p.getBusPrice());
-		pstmt.setDouble(2, p.getCustPrice());
-		pstmt.setInt(3, p.getOrderID());
-		pstmt.executeUpdate();
 
 		closeConnection();
 	}
@@ -318,6 +356,14 @@ public final class DBNinja {
 		Statement stmt = conn.createStatement();
 		stmt.executeUpdate(sql);
 
+		sql = "UPDATE pizza SET PizzaIsDone = True WHERE PizzaCustOrderID = " + o.getOrderID() + ";";
+		stmt.executeUpdate(sql);
+
+		if (o instanceof PickupOrder) {
+			sql = "UPDATE pickup SET PickupIsPickedUp = True WHERE PickupCustOrderID = " + o.getOrderID() + ";";
+			stmt.executeUpdate(sql);
+		}
+
 		closeConnection();
 	}
 
@@ -399,11 +445,11 @@ public final class DBNinja {
 		 * these orders should print in order from newest to oldest.
 		 */
 
-		String sql = "SELECT * FROM customer_order " +
-				"LEFT JOIN pickup ON PickupCustOrderID = CustOrderID " +
-				"LEFT JOIN delivery ON DeliveryCustOrderID = CustOrderID " +
-				"LEFT JOIN dine_in ON DineinCustOrderID = CustOrderID " +
-				"ORDER BY CustOrderOrderedAt DESC;";
+		String sql = "SELECT * FROM customer_order "
+				+ "LEFT JOIN pickup ON PickupCustOrderID = CustOrderID "
+				+ "LEFT JOIN delivery ON DeliveryCustOrderID = CustOrderID "
+				+ "LEFT JOIN dine_in ON DineinCustOrderID = CustOrderID "
+				+ "ORDER BY CustOrderOrderedAt DESC;";
 		Statement stmt = conn.createStatement();
 		ResultSet rs = stmt.executeQuery(sql);
 
@@ -502,26 +548,6 @@ public final class DBNinja {
 		// Helper function I used to help sort my dates. You likely wont need these
 
 		return false;
-	}
-
-	/*
-	 * The next 3 private functions help get the individual components of a SQL
-	 * datetime object.
-	 * You're welcome to keep them or remove them.
-	 */
-	private static int getYear(String date)// assumes date format 'YYYY-MM-DD HH:mm:ss'
-	{
-		return Integer.parseInt(date.substring(0, 4));
-	}
-
-	private static int getMonth(String date)// assumes date format 'YYYY-MM-DD HH:mm:ss'
-	{
-		return Integer.parseInt(date.substring(5, 7));
-	}
-
-	private static int getDay(String date)// assumes date format 'YYYY-MM-DD HH:mm:ss'
-	{
-		return Integer.parseInt(date.substring(8, 10));
 	}
 
 	public static double getBaseCustPrice(String size, String crust) throws SQLException, IOException {

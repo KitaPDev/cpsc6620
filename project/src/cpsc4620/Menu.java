@@ -151,8 +151,8 @@ public class Menu {
 			System.out.println(cust.toString());
 		}
 
-		int custID = -1;
-		while (custID == -1) {
+		Customer cust = new Customer(-1, "", "", "");
+		while (cust.getCustID() == -1) {
 			System.out.println("Which customer is this order for? Enter ID number:");
 			int tmp = -1;
 			try {
@@ -164,14 +164,14 @@ public class Menu {
 
 			for (Customer c : customers) {
 				if (c.getCustID() == tmp) {
-					custID = tmp;
+					cust = c;
 					break;
 				}
 			}
 		}
 
-		String orderType = "";
-		while (orderType.length() == 0) {
+		Order order = new Order(0, cust.getCustID(), "", null, 0, 0, 0);
+		while (order.getOrderType().length() == 0) {
 			System.out.println("Is this order for:");
 			System.out.println("1.) Dine-in");
 			System.out.println("2.) Pick-up");
@@ -187,22 +187,29 @@ public class Menu {
 
 			switch (tmp) {
 				case 1:
-					orderType = "Dine-in";
+					while (true) {
+						System.out.println("Which table would you like to sit at?");
+						input = reader.readLine();
+						if (input.matches("\\d+")) {
+							order = new DineinOrder(0, cust.getCustID(), "", 0, 0, 0, Integer.parseInt(input));
+							break;
+						}
+					}
 					break;
+
 				case 2:
-					orderType = "Pick-up";
+					order = new PickupOrder(0, cust.getCustID(), "", 0, 0, 0, 0);
 					break;
+
 				case 3:
-					orderType = "Delivery";
+					System.out.println("What's the delivery address?");
+					order = new DeliveryOrder(0, cust.getCustID(), "", 0, 0, 0, reader.readLine());
 					break;
 			}
 		}
 
-		Order order = new Order(0, custID, orderType, null, 0, 0, 0);
-		order.setOrderID(DBNinja.addOrder(order));
-
 		while (true) {
-			DBNinja.addPizza(buildPizza(order.getOrderID()));
+			order.addPizza(buildPizza(0));
 
 			System.out.println(
 					"Enter -1 to stop adding pizzas... Enter anything else to continue adding more pizzas to the order.");
@@ -211,7 +218,8 @@ public class Menu {
 			}
 		}
 
-		ArrayList<Discount> discounts = new ArrayList<Discount>();
+		ArrayList<Discount> selectedDiscounts = new ArrayList<Discount>();
+		ArrayList<Discount> discounts = DBNinja.getDiscountList();
 		while (true) {
 			System.out.println("Do you want to add discounts to this order? Enter y/n:");
 			input = reader.readLine();
@@ -222,10 +230,6 @@ public class Menu {
 			}
 
 			System.out.println("Getting discount list...");
-			if (discounts.size() == 0) {
-				discounts = DBNinja.getDiscountList();
-			}
-
 			while (true) {
 				for (Discount d : discounts) {
 					System.out.println(d.toString());
@@ -241,8 +245,7 @@ public class Menu {
 
 					for (Discount d : discounts) {
 						if (d.getDiscountID() == discountID) {
-							order.addDiscount(d);
-							;
+							selectedDiscounts.add(d);
 							break;
 						}
 					}
@@ -254,8 +257,13 @@ public class Menu {
 			}
 		}
 
-		for (Discount d : order.getDiscountList()) {
-			DBNinja.useOrderDiscount(order, d);
+		for (Pizza p : order.getPizzaList()) {
+			order.setBusPrice(order.getBusPrice() + p.getBusPrice());
+			order.setCustPrice(order.getCustPrice() + p.getCustPrice());
+		}
+
+		for (Discount d : selectedDiscounts) {
+			order.addDiscount(d);
 		}
 
 		System.out.println("Finished adding order...Returning to menu...");
@@ -641,6 +649,7 @@ public class Menu {
 			}
 		}
 
+		ArrayList<Discount> selectedDiscounts = new ArrayList<Discount>();
 		ArrayList<Discount> discounts = DBNinja.getDiscountList();
 		System.out.println("Do you want to add discounts to this Pizza? Enter y/n:");
 		if (reader.readLine().equals("y")) {
@@ -666,7 +675,7 @@ public class Menu {
 
 					for (Discount d : discounts) {
 						if (d.getDiscountID() == discountID) {
-							pizza.addDiscounts(d);
+							selectedDiscounts.add(d);
 							break;
 						}
 					}
@@ -677,45 +686,18 @@ public class Menu {
 			}
 		}
 
-		double price = DBNinja.getBaseCustPrice(size, crust), cost = DBNinja.getBaseBusPrice(size, crust);
-		for (Topping t : pizza.getToppings()) {
-			price += t.getCustPrice();
-			cost += t.getBusPrice();
-			;
-		}
+		pizza.setCustPrice(pizza.getCustPrice() + DBNinja.getBaseCustPrice(size, crust));
+		pizza.setBusPrice(pizza.getBusPrice() + DBNinja.getBaseBusPrice(size, crust));
 
-		double discountPercent = 0;
-		double discountAmt = 0;
-		for (Discount d : pizza.getDiscounts()) {
-			if (d.isPercent()) {
-				discountPercent += d.getAmount();
-			} else {
-				discountAmt += d.getAmount();
-			}
+		for (Discount d : selectedDiscounts) {
+			pizza.addDiscounts(d);
 		}
-		price *= (100 - discountPercent) / 100;
-		price -= discountAmt;
 
 		pizza.setSize(size);
 		pizza.setCrustType(crust);
 		pizza.setOrderID(orderID);
 		pizza.setPizzaState("In progress");
-		pizza.setCustPrice(price);
-		pizza.setBusPrice(cost);
-
 		return pizza;
-	}
-
-	private static int getTopIndexFromList(int TopID, ArrayList<Topping> tops) {
-		/*
-		 * This is a helper function I used to get a topping index from a list of
-		 * toppings
-		 * It's very possible you never need to use a function like this
-		 * 
-		 */
-		int ret = -1;
-
-		return ret;
 	}
 
 	public static void PrintReports() throws SQLException, NumberFormatException, IOException {
