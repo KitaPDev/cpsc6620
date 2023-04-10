@@ -469,17 +469,9 @@ public class Menu {
 		// the current inventory
 		ArrayList<Topping> toppings = DBNinja.getInventory();
 
-		System.out.println("ID\tName\t\t\tCurINVT");
+		System.out.printf("%-10s %-20s %-10s\n", "ID", "Name", "CurINVT");
 		for (Topping t : toppings) {
-			String line = t.getTopID() + "\t" + t.getTopName() + "\t";
-			if (t.getTopName().length() < 15) {
-				line += "\t";
-			}
-			if (t.getTopName().length() < 8) {
-				line += "\t";
-			}
-			line += t.getCurINVT();
-			System.out.println(line);
+			System.out.printf("%-10s %-20s %-10s\n", t.getTopID(), t.getTopName(), t.getCurINVT());
 		}
 	}
 
@@ -492,17 +484,9 @@ public class Menu {
 		 */
 		ArrayList<Topping> toppings = DBNinja.getInventory();
 
-		System.out.println("ID\tName\t\t\tCurINVT");
+		System.out.printf("%-10s %-20s %-10s\n", "ID", "Name", "CurINVT");
 		for (Topping t : toppings) {
-			String line = t.getTopID() + "\t" + t.getTopName() + "\t";
-			if (t.getTopName().length() < 15) {
-				line += "\t";
-			}
-			if (t.getTopName().length() < 8) {
-				line += "\t";
-			}
-			line += t.getCurINVT();
-			System.out.println(line);
+			System.out.printf("%-10s %-20s %-10s\n", t.getTopID(), t.getTopName(), t.getCurINVT());
 		}
 
 		BufferedReader reader = new BufferedReader(new InputStreamReader(System.in));
@@ -624,17 +608,9 @@ public class Menu {
 
 		ArrayList<Topping> toppings = DBNinja.getInventory();
 		while (true) {
-			System.out.println("ID\tName\t\t\tCurINVT");
+			System.out.printf("%-10s %-20s %-10s\n", "ID", "Name", "CurINVT");
 			for (Topping t : toppings) {
-				String line = t.getTopID() + "\t" + t.getTopName() + "\t";
-				if (t.getTopName().length() < 15) {
-					line += "\t";
-				}
-				if (t.getTopName().length() < 8) {
-					line += "\t";
-				}
-				line += t.getCurINVT();
-				System.out.println(line);
+				System.out.printf("%-10s %-20s %-10s\n", t.getTopID(), t.getTopName(), t.getCurINVT());
 			}
 			System.out.println("Which topping do you want to add? Enter the TopID. Enter -1 to stop adding toppings:");
 
@@ -748,8 +724,32 @@ public class Menu {
 		 * 
 		 * You should ask the user which report to print
 		 */
-	}
+		BufferedReader reader = new BufferedReader(new InputStreamReader(System.in));
 
+		while (true) {
+			System.out.println("Which report do you wish to print? Enter");
+			System.out.println("1.) ToppingPopularity");
+			System.out.println("2.) ProfitByPizza");
+			System.out.println("3.) ProfitByOrderType");
+			System.out.println("or -1 to return to menu:");
+
+			switch (reader.readLine()) {
+				case "1":
+					DBNinja.printToppingPopReport();
+					return;
+				case "2":
+					DBNinja.printProfitByPizzaReport();
+					return;
+				case "3":
+					DBNinja.printProfitByOrderType();
+					return;
+				case "-1":
+					return;
+				default:
+					System.out.println("Invalid input, please try again.");
+			}
+		}
+	}
 }
 
 // Prompt - NO CODE SHOULD TAKE PLACE BELOW THIS LINE

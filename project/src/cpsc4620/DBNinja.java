@@ -676,6 +676,17 @@ public final class DBNinja {
 		 * I'm not picky about how they print (other than that it should
 		 * be in alphabetical order by name), just make sure it's readable.
 		 */
+		String sql = "SELECT * FROM ToppingPopularity;";
+		Statement stmt = conn.createStatement();
+		ResultSet rs = stmt.executeQuery(sql);
+
+		System.out.printf("%-25s %-15s\n", "Topping", "ToppingCount");
+		while (rs.next()) {
+			String topping = rs.getString("Topping");
+			int count = rs.getInt("ToppingCount");
+
+			System.out.printf("%-25s %-15s\n", topping, count);
+		}
 
 		closeConnection();
 	}
@@ -689,6 +700,19 @@ public final class DBNinja {
 		 * 
 		 * I'm not picky about how they print, just make sure it's readable.
 		 */
+		String sql = "SELECT * FROM ProfitByPizza;";
+		Statement stmt = conn.createStatement();
+		ResultSet rs = stmt.executeQuery(sql);
+
+		System.out.printf("%-15s %-20s %-10s %-20s\n", "Pizza Size", "Pizza Crust", "Profit", "LastOrderDate");
+		while (rs.next()) {
+			String size = rs.getString("Pizza Size");
+			String crust = rs.getString("Pizza Crust");
+			double profit = rs.getDouble("Profit");
+			String date = rs.getString("LastOrderDate");
+
+			System.out.printf("%-15s %-20s %-10s %-20s\n", size, crust, profit, date);
+		}
 
 		closeConnection();
 	}
@@ -702,6 +726,31 @@ public final class DBNinja {
 		 * 
 		 * I'm not picky about how they print, just make sure it's readable.
 		 */
+		String sql = "SELECT * FROM ProfitByOrderType;";
+		Statement stmt = conn.createStatement();
+		ResultSet rs = stmt.executeQuery(sql);
+
+		System.out.printf("%-15s %-15s %-20s %-20s %-10s\n", "OrderType", "Order Month", "TotalOrderPrice",
+				"TotalOrderCost", "Profit");
+		while (rs.next()) {
+			if (rs.isLast()) {
+				String grandTotal = rs.getString("OrderMonth");
+				double price = rs.getDouble("TotalOrderPrice");
+				double cost = rs.getDouble("TotalOrderCost");
+				double profit = rs.getDouble("Profit");
+
+				System.out.printf("%-15s %-15s %-20s %-20s %-10s\n", "", grandTotal, price, cost, profit);
+				break;
+			}
+
+			String type = rs.getString("CustomerType");
+			String month = rs.getString("OrderMonth");
+			double price = rs.getDouble("TotalOrderPrice");
+			double cost = rs.getDouble("TotalOrderCost");
+			double profit = rs.getDouble("Profit");
+
+			System.out.printf("%-15s %-15s %-20s %-20s %-10s\n", type, month, price, cost, profit);
+		}
 
 		closeConnection();
 	}
