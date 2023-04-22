@@ -266,6 +266,13 @@ public class Menu {
 			order.addDiscount(d);
 		}
 
+		try {
+			DBNinja.addOrder(order, cust);
+		} catch (Exception e) {
+			System.out.println("Add order error: " + e.getMessage());
+			return;
+		}
+
 		System.out.println("Finished adding order...Returning to menu...");
 	}
 

@@ -113,7 +113,7 @@ public final class DBNinja {
 			o.setOrderID(generatedKeys.getInt(1));
 
 			for (Discount d : o.getDiscountList()) {
-				DBNinja.useOrderDiscount(o, d);
+				DBNinja.useOrderDiscount(o, d, true);
 			}
 
 			if (o instanceof DineinOrder) {
@@ -154,7 +154,7 @@ public final class DBNinja {
 
 			for (Pizza p : o.getPizzaList()) {
 				p.setOrderID(o.getOrderID());
-				DBNinja.addPizza(p);
+				DBNinja.addPizza(p, true);
 			}
 
 			closeConnection();
@@ -163,7 +163,7 @@ public final class DBNinja {
 		}
 	}
 
-	public static void addPizza(Pizza p) throws SQLException, IOException {
+	public static void addPizza(Pizza p, boolean keepConnOpen) throws SQLException, IOException {
 		connect_to_db();
 		/*
 		 * Add the code needed to insert the pizza into into the database.
@@ -203,7 +203,9 @@ public final class DBNinja {
 			usePizzaDiscount(p, p.getDiscounts().get(i), true);
 		}
 
-		closeConnection();
+		if (!keepConnOpen) {
+			closeConnection();
+		}
 	}
 
 	public static int getMaxPizzaID() throws SQLException, IOException {
@@ -297,7 +299,7 @@ public final class DBNinja {
 		}
 	}
 
-	public static void useOrderDiscount(Order o, Discount d) throws SQLException, IOException {
+	public static void useOrderDiscount(Order o, Discount d, boolean keepConnOpen) throws SQLException, IOException {
 		connect_to_db();
 		/*
 		 * Helper function I used to update the pizza-discount bridge table.
@@ -326,7 +328,9 @@ public final class DBNinja {
 		stmt.setInt(2, o.getOrderID());
 
 		stmt.executeUpdate();
-		closeConnection();
+		if (!keepConnOpen) {
+			closeConnection();
+		}
 	}
 
 	public static void addCustomer(Customer c) throws SQLException, IOException {
