@@ -287,13 +287,6 @@ public final class DBNinja {
 		stmt.setInt(2, p.getPizzaID());
 		stmt.executeUpdate();
 
-		sql = "UPDATE customer_order SET CustOrderPrice = CustOrderPrice + ? WHERE CustOrderID = ?;";
-		stmt = conn.prepareStatement(sql);
-
-		stmt.setDouble(1, p.getBusPrice());
-		stmt.setInt(2, p.getOrderID());
-
-		stmt.executeUpdate();
 		if (!keepConnOpen) {
 			closeConnection();
 		}
@@ -314,20 +307,6 @@ public final class DBNinja {
 		stmt.setInt(2, o.getOrderID());
 		stmt.executeUpdate();
 
-		sql = "UPDATE customer_order SET CustOrderPrice = CustOrderPrice - ? " +
-				"WHERE CustOrderID = ?;";
-
-		if (d.isPercent()) {
-			sql = "UPDATE customer_order SET CustOrderPrice = CustOrderPrice * ((100 - ?)/100) " +
-					"WHERE CustOrderID = ?;";
-		}
-
-		stmt = conn.prepareStatement(sql);
-
-		stmt.setDouble(1, d.getAmount());
-		stmt.setInt(2, o.getOrderID());
-
-		stmt.executeUpdate();
 		if (!keepConnOpen) {
 			closeConnection();
 		}

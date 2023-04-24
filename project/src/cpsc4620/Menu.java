@@ -263,6 +263,10 @@ public class Menu {
 		}
 
 		for (Discount d : selectedDiscounts) {
+			if (d.isPercent()) {
+				d.setAmount(d.getAmount() / 100);
+			}
+
 			order.addDiscount(d);
 		}
 
@@ -697,6 +701,10 @@ public class Menu {
 		pizza.setBusPrice(pizza.getBusPrice() + DBNinja.getBaseBusPrice(size, crust));
 
 		for (Discount d : selectedDiscounts) {
+			if (d.isPercent()) {
+				d.setAmount(d.getAmount() / 100);
+			}
+
 			pizza.addDiscounts(d);
 		}
 
